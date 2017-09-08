@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Image;
 use Illuminate\Http\Request;
 use GuzzleHttp;
+use App\Dog;
 
 class DogController extends Controller
 {
@@ -24,7 +25,6 @@ class DogController extends Controller
     public function post()
     {
         $image = new Image($this->request);
-
         try {
             $imageData = $image->getDefaultVisionRequest();
         } catch(\Exception $e)
@@ -38,6 +38,16 @@ class DogController extends Controller
             return ['status' => false, 'message' => $e->getMessage()];
         }
 
-        return json_encode(['status' => ($response->getStatusCode() == "200"), 'data' => $response->getBody()->getContents()]);
+        $data = json_decode($response->getBody()->getContents());
+        $results = collect($data->responses[0]->labelAnnotations);
+
+        $dogs = Dog::get();
+        $found = $results->filter(function($item) use ($dogs) {
+            return in_array($item->description, $dogs);
+        });
+
+        print_r($found->count());
+
+        return $this->respond($results);
     }
 }
